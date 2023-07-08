@@ -5,15 +5,15 @@ use crate::{cell::Cell, non_null::NonNull};
 struct LinkedListLink<T>(Mutex<Cell<Option<NonNull<T>>>>);
 
 impl<T> LinkedListLink<T> {
-    fn get(&self, cs: &CriticalSection) -> Option<NonNull<T>> {
+    fn get(&self, cs: CriticalSection) -> Option<NonNull<T>> {
         self.0.borrow(cs).get()
     }
 
-    fn set(&self, cs: &CriticalSection, value: Option<NonNull<T>>) {
+    fn set(&self, cs: CriticalSection, value: Option<NonNull<T>>) {
         self.0.borrow(cs).set(value)
     }
 
-    fn take(&self, cs: &CriticalSection) -> Option<NonNull<T>> {
+    fn take(&self, cs: CriticalSection) -> Option<NonNull<T>> {
         self.0.borrow(cs).take()
     }
 }
@@ -59,7 +59,7 @@ pub struct LinkedList<T> {
 }
 
 impl<T> LinkedList<T> {
-    pub fn with_first<F, R>(&self, cs: &CriticalSection, f: F) -> Option<R>
+    pub fn with_first<F, R>(&self, cs: CriticalSection, f: F) -> Option<R>
     where
         F: FnOnce(&T) -> R,
     {
@@ -83,7 +83,7 @@ pub trait LinkedListItem: Sized {
 
     fn list(&self) -> &LinkedList<Self>;
 
-    fn is_in_queue(&self, cs: &CriticalSection) -> bool {
+    fn is_in_queue(&self, cs: CriticalSection) -> bool {
         let links = self.links();
         links.previous.get(cs).is_some()
             || links.next.get(cs).is_some()
@@ -95,7 +95,7 @@ pub trait LinkedListItem: Sized {
                 .map_or(false, |core| core::ptr::eq(core.first.as_ptr(), self))
     }
 
-    fn insert_front(&self, cs: &CriticalSection) {
+    fn insert_front(&self, cs: CriticalSection) {
         if self.is_in_queue(cs) {
             return;
         }
@@ -121,7 +121,7 @@ pub trait LinkedListItem: Sized {
         }
     }
 
-    fn insert_back(&self, cs: &CriticalSection) {
+    fn insert_back(&self, cs: CriticalSection) {
         if self.is_in_queue(cs) {
             return;
         }
@@ -147,7 +147,7 @@ pub trait LinkedListItem: Sized {
         }
     }
 
-    fn remove(&self, cs: &CriticalSection) {
+    fn remove(&self, cs: CriticalSection) {
         let self_ptr = self as *const Self;
 
         let links = self.links();
@@ -249,7 +249,7 @@ mod tests {
             interrupt::free(|cs| self.list.core.borrow(cs).get().is_none())
         }
 
-        fn contains(&self, node: *const Node<'a>, cs: &CriticalSection) -> bool {
+        fn contains(&self, node: *const Node<'a>, cs: CriticalSection) -> bool {
             if let Some(ends) = self.list.core.borrow(cs).get() {
                 let mut current_node = ends.first;
 

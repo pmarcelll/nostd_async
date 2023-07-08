@@ -39,7 +39,7 @@ struct TaskCore {
 }
 
 impl TaskCore {
-    fn run_once(&self, cs: &CriticalSection) {
+    fn run_once(&self, cs: CriticalSection) {
         if let Some(future_ptr) = self.future.take() {
             self.remove(cs);
 
@@ -200,6 +200,8 @@ impl Runtime {
             cortex_m::asm::wfi();
             #[cfg(all(feature = "cortex_m", feature = "wfe"))]
             cortex_m::asm::wfe();
+            #[cfg(feature = "avr")]
+            avr_device::asm::sleep();
         };
     }
 }

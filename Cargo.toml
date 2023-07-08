@@ -18,10 +18,12 @@ categories = ["asynchronous", "embedded", "no-std"]
 [features]
 cortex_m = ["cortex-m"]
 wfe = ["cortex-m"]
+avr = ["avr-device"]
 
 [dependencies]
-bare-metal = "0.2"
+bare-metal = "1.0.0"
 cortex-m = { version = "0.7", optional = true }
+avr-device = { version = "0.5.1", optional = true }
 
 [dev-dependencies]
 futures-micro = "0.5"
