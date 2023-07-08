@@ -7,7 +7,7 @@ pub use avr_device::interrupt::free;
 #[cfg(not(any(feature = "cortex_m", feature = "avr")))]
 pub fn free<F, R>(f: F) -> R
 where
-    F: FnOnce(&bare_metal::CriticalSection) -> R,
+    F: FnOnce(bare_metal::CriticalSection) -> R,
 {
-    f(&unsafe { bare_metal::CriticalSection::new() })
+    f(unsafe { bare_metal::CriticalSection::new() })
 }

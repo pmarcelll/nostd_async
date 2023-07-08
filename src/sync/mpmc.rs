@@ -90,7 +90,7 @@ impl<'b, T> Future for Send<'b, T> {
 
                 this.waker.borrow(cs).set(Some(cx.waker().clone()));
 
-                this.buffer.receivers.with_first(cs, |receiver| {
+                this.buffer.receivers.with_first(|receiver| {
                     if let Some(waker) = receiver.waker.borrow(cs).take() {
                         waker.wake();
                     }
@@ -143,7 +143,7 @@ impl<'b, T> Future for Receive<'b, T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         interrupt::free(|cs| {
             let this = unsafe { self.get_unchecked_mut() };
-            match this.buffer.senders.with_first(cs, |sender| {
+            match this.buffer.senders.with_first(|sender| {
                 sender.remove(cs);
                 sender
                     .waker

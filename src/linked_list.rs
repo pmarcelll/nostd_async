@@ -1,6 +1,6 @@
 use bare_metal::{CriticalSection, Mutex};
 
-use crate::{cell::Cell, non_null::NonNull};
+use crate::{cell::Cell, non_null::NonNull, interrupt};
 
 struct LinkedListLink<T>(Mutex<Cell<Option<NonNull<T>>>>);
 
@@ -59,13 +59,11 @@ pub struct LinkedList<T> {
 }
 
 impl<T> LinkedList<T> {
-    pub fn with_first<F, R>(&self, cs: CriticalSection, f: F) -> Option<R>
+    pub fn with_first<F, R>(&self, f: F) -> Option<R>
     where
         F: FnOnce(&T) -> R,
     {
-        self.core
-            .borrow(cs)
-            .get()
+        interrupt::free(|cs| self.core.borrow(cs).get())
             .map(|core| f(unsafe { core.first.as_ref() }))
     }
 }
