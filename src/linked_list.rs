@@ -54,6 +54,19 @@ impl<T> Clone for LinkedListCore<T> {
 
 impl<T> Copy for LinkedListCore<T> {}
 
+pub struct LinkedListDeferred<T> {
+    inner: NonNull<T>,
+}
+
+impl<T> LinkedListDeferred<T> {
+    pub unsafe fn with<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R
+    {
+        f(self.inner.as_ref())
+    }
+}
+
 pub struct LinkedList<T> {
     core: Mutex<Cell<Option<LinkedListCore<T>>>>,
 }
@@ -63,10 +76,15 @@ impl<T> LinkedList<T> {
     where
         F: FnOnce(&T) -> R,
     {
+        self.get_first(cs)
+            .map(|first| unsafe { first.with(f) })
+    }
+
+    pub fn get_first(&self, cs: CriticalSection) -> Option<LinkedListDeferred<T>> {
         self.core
             .borrow(cs)
             .get()
-            .map(|core| f(unsafe { core.first.as_ref() }))
+            .map(|core| LinkedListDeferred { inner: core.first })
     }
 }
 

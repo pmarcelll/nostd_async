@@ -39,9 +39,9 @@ struct TaskCore {
 }
 
 impl TaskCore {
-    fn run_once(&self, cs: CriticalSection) {
+    fn run_once(&self) {
         if let Some(future_ptr) = self.future.take() {
-            self.remove(cs);
+            interrupt::free(|cs| self.remove(cs));
 
             let future = unsafe { Pin::new_unchecked(&mut *future_ptr) };
             let data = self as *const Self as *const ();
@@ -191,11 +191,12 @@ impl Runtime {
     }
 
     unsafe fn run_once(&self) {
-        if interrupt::free(|cs| {
-            self.tasks
-                .with_first(cs, |first| first.run_once(cs))
-                .is_none()
-        }) {
+        let first = interrupt::free(|cs| self.tasks.get_first(cs));
+
+        if first
+            .map(|first| first.with(|task_core| task_core.run_once()))
+            .is_none()
+        {
             #[cfg(all(feature = "cortex_m", not(feature = "wfe")))]
             cortex_m::asm::wfi();
             #[cfg(all(feature = "cortex_m", feature = "wfe"))]
