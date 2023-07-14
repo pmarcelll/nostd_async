@@ -1,4 +1,4 @@
-use bare_metal::{CriticalSection, Mutex};
+use critical_section::{CriticalSection, Mutex};
 
 use crate::{cell::Cell, non_null::NonNull};
 
@@ -217,8 +217,6 @@ pub trait LinkedListItem: Sized {
 mod tests {
     use super::*;
 
-    use crate::interrupt;
-
     #[derive(Default)]
     struct TestLinkedList<'a> {
         list: LinkedList<Node<'a>>,
@@ -226,7 +224,7 @@ mod tests {
 
     impl<'a> TestLinkedList<'a> {
         fn assert_is_valid(&self) {
-            interrupt::free(|cs| unsafe {
+            critical_section::with(|cs| unsafe {
                 if let Some(ends) = self.list.core.borrow(cs).get() {
                     assert!(ends.first.as_ref().links.previous.get(cs).is_none());
                     assert!(ends.last.as_ref().links.next.get(cs).is_none());
@@ -264,7 +262,7 @@ mod tests {
         }
 
         fn is_empty(&self) -> bool {
-            interrupt::free(|cs| self.list.core.borrow(cs).get().is_none())
+            critical_section::with(|cs| self.list.core.borrow(cs).get().is_none())
         }
 
         fn contains(&self, node: *const Node<'a>, cs: CriticalSection) -> bool {
@@ -321,7 +319,7 @@ mod tests {
 
     #[test]
     fn singleton_insert_front_is_valid() {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let list = TestLinkedList::default();
 
             let node = Node::new(&list);
@@ -334,7 +332,7 @@ mod tests {
 
     #[test]
     fn singleton_insert_back_is_valid() {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let list = TestLinkedList::default();
 
             let node = Node::new(&list);
@@ -347,7 +345,7 @@ mod tests {
 
     #[test]
     fn list_a_b_is_valid() {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let list = TestLinkedList::default();
 
             let node_a = Node::new(&list);
@@ -370,7 +368,7 @@ mod tests {
 
     #[test]
     fn list_b_a_is_valid() {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let list = TestLinkedList::default();
 
             let node_a = Node::new(&list);
@@ -392,7 +390,7 @@ mod tests {
     }
 
     fn run_triple_test(remove_order: [usize; 3]) {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let list = TestLinkedList::default();
 
             let mut nodes = [Node::new(&list), Node::new(&list), Node::new(&list)];

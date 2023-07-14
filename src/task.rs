@@ -4,11 +4,8 @@ use core::{
     task::{Context, RawWaker, RawWakerVTable, Waker},
 };
 
-use bare_metal::CriticalSection;
-
 use crate::{
     cell::Cell,
-    interrupt,
     linked_list::{LinkedList, LinkedListItem, LinkedListLinks},
     non_null::NonNull,
 };
@@ -19,12 +16,12 @@ unsafe fn waker_clone(context: *const ()) -> RawWaker {
 
 unsafe fn waker_wake(context: *const ()) {
     let task = &*(context as *const TaskCore);
-    interrupt::free(|cs| task.insert_back(cs));
+    critical_section::with(|cs| task.insert_back(cs));
 }
 
 unsafe fn waker_wake_by_ref(context: *const ()) {
     let task = &*(context as *const TaskCore);
-    interrupt::free(|cs| task.insert_back(cs));
+    critical_section::with(|cs| task.insert_back(cs));
 }
 
 unsafe fn waker_drop(_context: *const ()) {}
@@ -41,7 +38,7 @@ struct TaskCore {
 impl TaskCore {
     fn run_once(&self) {
         if let Some(future_ptr) = self.future.take() {
-            interrupt::free(|cs| self.remove(cs));
+            critical_section::with(|cs| self.remove(cs));
 
             let future = unsafe { Pin::new_unchecked(&mut *future_ptr) };
             let data = self as *const Self as *const ();
@@ -87,7 +84,7 @@ impl<'a, T> JoinHandle<'a, T> {
 
 impl<'a, T> Drop for JoinHandle<'a, T> {
     fn drop(&mut self) {
-        interrupt::free(|cs| self.task_core.remove(cs));
+        critical_section::with(|cs| self.task_core.remove(cs));
     }
 }
 
@@ -155,7 +152,7 @@ where
 
         let task_core = self.core.as_ref().unwrap();
 
-        interrupt::free(|cs| task_core.insert_back(cs));
+        critical_section::with(|cs| task_core.insert_back(cs));
 
         JoinHandle {
             task_core,
@@ -166,7 +163,7 @@ where
 
 impl<F: Future> core::ops::Drop for Task<F> {
     fn drop(&mut self) {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             self.future = None;
 
             if let Some(core) = self.core.take() {
@@ -191,7 +188,7 @@ impl Runtime {
     }
 
     unsafe fn run_once(&self) {
-        let first = interrupt::free(|cs| self.tasks.get_first(cs));
+        let first = critical_section::with(|cs| self.tasks.get_first(cs));
 
         if first
             .map(|first| first.with(|task_core| task_core.run_once()))

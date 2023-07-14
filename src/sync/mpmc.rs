@@ -4,11 +4,10 @@ use core::{
     task::{Context, Poll, Waker},
 };
 
-use bare_metal::Mutex;
+use critical_section::Mutex;
 
 use crate::{
     cell::Cell,
-    interrupt,
     linked_list::{LinkedList, LinkedListItem, LinkedListLinks},
 };
 
@@ -79,7 +78,7 @@ impl<'b, T> Future for Send<'b, T> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let this = unsafe { self.get_unchecked_mut() };
 
             if this.value.borrow(cs).has_none() {
@@ -103,7 +102,7 @@ impl<'b, T> Future for Send<'b, T> {
 
 impl<'b, T> Drop for Send<'b, T> {
     fn drop(&mut self) {
-        interrupt::free(|cs| self.remove(cs));
+        critical_section::with(|cs| self.remove(cs));
     }
 }
 
@@ -141,7 +140,7 @@ impl<'b, T> Future for Receive<'b, T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        interrupt::free(|cs| {
+        critical_section::with(|cs| {
             let this = unsafe { self.get_unchecked_mut() };
             match this.buffer.senders.with_first(cs, |sender| {
                 sender.remove(cs);
@@ -169,6 +168,6 @@ impl<'b, T> Future for Receive<'b, T> {
 
 impl<'b, T> Drop for Receive<'b, T> {
     fn drop(&mut self) {
-        interrupt::free(|cs| self.remove(cs));
+        critical_section::with(|cs| self.remove(cs));
     }
 }
