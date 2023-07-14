@@ -26,3 +26,10 @@ Enables Cortex-M Support.
 ### `wfe`
 
 Uses `wfe` instead of `wfi` if there are no pending tasks
+
+### `avr`
+
+Enables AVR Support.
+
+ + Disables interrupts when scheduling and descheduling tasks
+ + Waits for interrupts when there are no tasks remaining
